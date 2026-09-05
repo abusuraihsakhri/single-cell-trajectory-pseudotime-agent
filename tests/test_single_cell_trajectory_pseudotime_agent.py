@@ -8,11 +8,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
-from agents.base import PHIGuard, AuditLogger, SecurityException
+from agents.base import PHIGuard, AuditLogger, SecurityException, AuditTrail
 from agents.models import SystemTaskPayload, UrgencyLevel, SystemIntegrityStatus
 from agents.workers import InvariantQCWorker, SafetyEscalationWorker, ProtocolConformanceWorker
 from agents.supervisor import SystemSupervisor
-from cli import main
+from cli import main, _safe_resolve_path
 
 
 def test_phi_guard_enforcement():
@@ -21,6 +21,13 @@ def test_phi_guard_enforcement():
 
     # Clean text passes
     PHIGuard.assert_no_phi("Analytical assay specimen KEY-001 optimal")
+
+
+def test_phi_guard_redaction():
+    redacted = PHIGuard.redact_phi("Contact patient at 555-123-4567 or test@example.com")
+    assert "555-123-4567" not in redacted
+    assert "test@example.com" not in redacted
+    assert "[REDACTED_IDENTIFIER]" in redacted
 
 
 def test_specialized_workers():
@@ -63,3 +70,64 @@ def test_supervisor_consensus_and_audit():
     assert main(["audit", "--task-id", "CLI-TEST-01"]) == 0
     assert main(["chat", "Explain", "specifications"]) == 0
     assert main(["verify-audit"]) == 0
+
+
+def test_supervisor_blocks_phi_in_task_id():
+    """Verify that supervisor rejects task IDs containing PHI."""
+    supervisor = SystemSupervisor(model_provider="mock")
+    payload = SystemTaskPayload(
+        task_id="MRN-12345",
+        target_identifier="KEY-01",
+        primary_metric=10.0,
+        secondary_metric=4.0,
+        status_descriptor="NOMINAL"
+    )
+    with pytest.raises(SecurityException):
+        supervisor.process_task(payload)
+
+
+def test_audit_trail_integrity_tampering():
+    """Verify that tampering with audit trail is detected."""
+    trail = AuditTrail(secret_key="test-key-for-integrity")
+    trail.log("test", "tier", "event", {"data": "value1"})
+    trail.log("test", "tier", "event", {"data": "value2"})
+    assert trail.verify_integrity() is True
+
+    # Simulate tampering
+    if trail.logs:
+        trail.logs[0]["payload_hash"] = "tampered"
+    assert trail.verify_integrity() is False
+
+
+def test_safe_resolve_path_blocks_traversal():
+    """Verify that path traversal attempts are blocked."""
+    with pytest.raises(ValueError, match="Access denied"):
+        _safe_resolve_path("../../etc/passwd")
+
+    with pytest.raises(ValueError, match="Access denied"):
+        _safe_resolve_path("/etc/passwd")
+
+
+def test_safe_resolve_path_allows_local():
+    """Verify that local paths are allowed."""
+    p = _safe_resolve_path("sample.csv", must_exist=True)
+    assert p.exists()
+    assert p.name == "sample.csv"
+
+
+def test_audit_trail_ephemeral_key_generation():
+    """Verify that AuditTrail generates ephemeral key when none provided."""
+    import warnings
+    # Clear env var to test ephemeral generation
+    import os
+    old_key = os.environ.pop("AUDIT_SECRET_KEY", None)
+    try:
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            trail = AuditTrail(secret_key=None)
+            assert len(w) == 1
+            assert "AUDIT_SECRET_KEY not set" in str(w[0].message)
+            assert len(trail.secret_key) > 0
+    finally:
+        if old_key:
+            os.environ["AUDIT_SECRET_KEY"] = old_key

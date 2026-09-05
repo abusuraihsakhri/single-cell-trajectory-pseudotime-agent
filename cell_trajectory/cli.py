@@ -5,6 +5,7 @@ import argparse
 import csv
 import json
 import sys
+from pathlib import Path
 from .models import FrontierPayload
 from .agents import CellTrajectoryCoordinator
 
@@ -69,7 +70,20 @@ def main(argv=None):
         return 0
 
     if args.command == "batch":
-        with open(args.input, mode="r", encoding="utf-8-sig") as f:
+        cwd = Path.cwd().resolve()
+        in_path = Path(args.input).resolve()
+        out_path = Path(args.output).resolve()
+        # Path traversal protection
+        try:
+            in_path.relative_to(cwd)
+            out_path.relative_to(cwd)
+        except ValueError:
+            print("Error: Batch file paths must be within the working directory.")
+            return 1
+        if not in_path.exists():
+            print(f"Error: Input file not found: {args.input}")
+            return 1
+        with open(in_path, mode="r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
@@ -77,13 +91,19 @@ def main(argv=None):
         out_fields = fieldnames + ["overall_status", "total_alerts", "critical_count", "consensus_summary"]
         out_rows = []
         for r in rows:
+            try:
+                primary = float(r.get("primary_metric", 15.0))
+                secondary = float(r.get("secondary_metric", 5.0))
+            except (ValueError, TypeError) as e:
+                print(f"Warning: Skipping row with invalid metrics: {r} ({e})")
+                continue
             payload = FrontierPayload(
                 task_id=r.get("task_id", "TASK-01"),
                 target_identifier=r.get("target_identifier", "TARGET-01"),
-                primary_metric=float(r.get("primary_metric", 15.0)),
-                secondary_metric=float(r.get("secondary_metric", 5.0)),
+                primary_metric=primary,
+                secondary_metric=secondary,
                 status_descriptor=r.get("status_descriptor", "NOMINAL"),
-                is_critical_flag=bool(r.get("is_critical_flag", False)),
+                is_critical_flag=str(r.get("is_critical_flag", "")).lower() in ("true", "1", "yes"),
             )
             dossier = coordinator.process(payload)
             row_dict = dict(r)
@@ -93,7 +113,7 @@ def main(argv=None):
             row_dict["consensus_summary"] = dossier["consensus_summary"]
             out_rows.append(row_dict)
 
-        with open(args.output, mode="w", encoding="utf-8", newline="") as f:
+        with open(out_path, mode="w", encoding="utf-8", newline="") as f:
             writer = csv.DictWriter(f, fieldnames=out_fields)
             writer.writeheader()
             writer.writerows(out_rows)

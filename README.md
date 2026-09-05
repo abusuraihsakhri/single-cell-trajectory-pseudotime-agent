@@ -1,7 +1,7 @@
 # Single Cell Trajectory Pseudotime Agent
 
-> **Domain:** Clinical Decision Support & Biomedical Computing  
-> **Reference Guidelines & Standards:** `Standard Clinical Formulations & ISO/IEC Quality Frameworks`
+> **Domain:** Clinical Decision Support & Biomedical Computing
+> **Reference Guidelines & Standards:** CAP / CLSI / ISO Standards
 
 <div align="center">
 
@@ -18,82 +18,185 @@
 
 ## 📖 What It Does
 
-**Single Cell Trajectory Pseudotime Agent** is an advanced analytical and computational platform implementing Single-cell KNN graph diffusion pseudotime & branching lineage detector.
+**Single Cell Trajectory Pseudotime Agent** is an enterprise-grade analytical platform implementing single-cell KNN graph diffusion pseudotime analysis with branching lineage detection. It provides:
+
+- Multi-worker evaluation pipeline for biomedical metrics
+- Zero-PHI outbound data protection (HIPAA Safe Harbor compliant)
+- Tamper-evident HMAC-SHA256 audit trail
+- REST API and CLI interfaces
 
 ---
 
-## ⚙️ Key Capabilities & Algorithmic Modules
+## 🏗️ Architecture
 
-- **Deterministic Calculation Engine**: Strict compliance with standard reference formulations and thresholds.
-- **Risk & Urgency Classification**: Multi-tier categorization with automated clinical/operational action recommendations.
-- **Validation & Guardrails**: Rigorous input bounds checking and anomaly detection.
+The project is organized into two main packages:
+
+| Package | Purpose |
+|:--------|:--------|
+| `agents/` | Enterprise analytical suite with PHI guard, audit logging, specialized workers, and supervisor orchestration |
+| `cell_trajectory/` | Frontier domain engine for diffusion pseudotime evaluation |
+| `enrichment/` | Extended feature modules for trajectory visualization, gene expression analysis, RNA velocity, and more |
+
+### Key Components
+
+- **`agents/base.py`** — PHIGuard (PHI detection/redaction), AuditTrail (HMAC-SHA256 chained logging)
+- **`agents/workers.py`** — Specialized workers: InvariantQCWorker, SafetyEscalationWorker, ProtocolConformanceWorker
+- **`agents/supervisor.py`** — SystemSupervisor orchestrator with multi-worker consensus
+- **`agents/api.py`** — FastAPI REST server with `/health`, `/api/audit`, `/api/chat`, `/api/audit/logs`
+- **`cell_trajectory/engine.py`** — Core domain engine for diffusion pseudotime evaluation
+- **`cell_trajectory/agents.py`** — Sub-agent coordination: KNNGraphBuilderAgent, DiffusionMapEigenvectorAgent, BranchingLineageDetectorAgent
 
 ---
 
-## 💻 CLI Quickstart & Usage
+## 💻 Installation
 
-### 1. Guided Interactive Mode
 ```bash
-python cli.py
+# Clone the repository
+git clone https://github.com/abusuraihsakhri/single-cell-trajectory-pseudotime-agent.git
+cd single-cell-trajectory-pseudotime-agent
+
+# Install core (no external dependencies required for CLI)
+pip install -e .
+
+# Optional: Install FastAPI/uvicorn for REST API server
+pip install fastapi uvicorn
 ```
 
-### 2. Direct Parameterized Evaluation
+---
+
+## 🚀 CLI Quickstart & Usage
+
+### 1. Run Single Audit
 ```bash
-python cli.py --task-id <value> --target <value> --primary <value> --secondary <value>
+python cli.py audit --task-id TASK-001 --primary 28.5 --secondary 14.2 --status DISCORDANT --critical
+```
+
+### 2. Interactive Chat
+```bash
+python cli.py chat "What standard is applied?"
+```
+
+### 3. Batch CSV Processing
+```bash
+python cli.py batch -i sample.csv -o results.csv
+```
+
+### 4. Verify Audit Trail Integrity
+```bash
+python cli.py verify-audit
+```
+
+### 5. Launch REST API Server
+```bash
+python cli.py serve --host 127.0.0.1 --port 8000
 ```
 
 ### Parameter Reference
-- `--task-id`: Specifies input measurement or parameter value.
-- `--target`: Specifies input measurement or parameter value.
-- `--primary`: Specifies input measurement or parameter value.
-- `--secondary`: Specifies input measurement or parameter value.
-- `--critical`: Specifies input measurement or parameter value.
-- `--status`: Specifies input measurement or parameter value.
-- `--input`: Specifies input measurement or parameter value.
-- `--output`: Specifies input measurement or parameter value.
 
-### Input Data Schema
+| Flag | Description | Default |
+|:-----|:------------|:--------|
+| `--task-id` | Unique task identifier | `TASK-2026-001` |
+| `--target` | Target specimen/entity identifier | `KEY-TARGET-01` |
+| `--primary` | Primary measurement value | `28.5` |
+| `--secondary` | Secondary kinetic/confidence score | `14.2` |
+| `--critical` | Trigger emergency escalation | `False` |
+| `--status` | Status/phenotype descriptor | `DISCORDANT` |
+
+### Input Data Schema (CSV/JSON)
 
 | Field | Description | Requirement |
 |:------|:------------|:------------|
-| `task_id` | Parameter / observation metric | Required |
-| `target_identifier` | Parameter / observation metric | Required |
-| `primary_metric` | Parameter / observation metric | Required |
-| `secondary_metric` | Parameter / observation metric | Required |
-| `is_critical_flag` | Parameter / observation metric | Required |
-| `status_descriptor` | Parameter / observation metric | Required |
+| `task_id` | Unique task / case identifier | Required |
+| `target_identifier` | Specimen or target identifier | Required |
+| `primary_metric` | Primary domain measurement | Required |
+| `secondary_metric` | Secondary kinetic/confidence score | Optional (default: 0.0) |
+| `is_critical_flag` | Emergency escalation trigger | Optional (default: false) |
+| `status_descriptor` | Status code or phenotype | Optional (default: "NOMINAL") |
 
 ---
 
 ## 🛡️ Security & Enterprise Architecture
 
-* **Zero-PHI Outbound Interceptor:** Active AST and regex inspection blocking SSNs, MRNs, phone numbers, and patient identifiers.
-* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs for every evaluation and state transition.
-* **Air-Gapped LLM Reasoning Adapter:** Agnostic integration for local Ollama instances (`llama3`, `mistral`), Claude 3.5 Sonnet, GPT-4o, and deterministic test mocks.
-* **Active Learning Bayesian Calibration:** Dynamic tracker updating worker reliability weights and monitoring Brier calibration drift.
-* **FastAPI & Prometheus Telemetry:** Exposes OpenAPI 3.1 REST endpoints and operational Prometheus metrics (`/metrics`).
+* **Zero-PHI Outbound Interceptor:** Active regex inspection blocking SSNs, MRNs, phone numbers, emails, DOB patterns, and patient names.
+* **Tamper-Evident HMAC-SHA256 Audit Trail:** Chained, cryptographically signed logs with integrity verification. Each entry includes the hash of the previous block.
+* **Path Traversal Protection:** Batch CSV processing validates that input/output paths remain within the working directory.
+* **Secure Defaults:** Audit signing key auto-generated via `secrets.token_hex()` if `AUDIT_SECRET_KEY` env var is not set (with runtime warning).
+* **Input Validation:** All metric inputs validated for correct types; malformed CSV rows are skipped with warnings.
+
+### Environment Variables
+
+| Variable | Purpose | Required |
+|:---------|:--------|:---------|
+| `AUDIT_SECRET_KEY` | Secret key for HMAC-SHA256 audit signing | No (auto-generated if unset) |
+| `MODEL_PROVIDER` | LLM provider for chat (mock, ollama, claude, openai) | No (default: mock) |
 
 ---
 
 ## 🧪 Testing & Verification
 
-Run the automated test suite:
-
+### Run Automated Test Suite
 ```bash
 pytest -v
 ```
 
-Execute high-throughput batch simulation benchmarks:
-
+### Run with Coverage
 ```bash
-python simulator.py --tasks 1000 --concurrency 8
+pip install pytest-cov
+pytest -v --cov=agents --cov=cell_trajectory --cov=enrichment
+```
+
+### Execute Batch Simulation
+```bash
+python simulator.py 100
+```
+
+### Security Audit
+```bash
+python -c "
+from agents.base import PHIGuard, AuditLogger
+assert AuditLogger.verify_integrity() is True
+PHIGuard.assert_no_phi('Safe text without PHI')
+print('Security Audit Passed!')
+"
 ```
 
 ---
 
 ## 🐳 Container Deployment
 
+### Docker Compose (Recommended)
+```bash
+# Set a production audit key
+export AUDIT_SECRET_KEY=$(python -c "import secrets; print(secrets.token_hex(32))")
+docker-compose up --build
+```
+
+### Docker Direct
 ```bash
 docker build -t single-cell-trajectory-pseudotime-agent .
-docker run -p 8000:8000 single-cell-trajectory-pseudotime-agent
+docker run -p 8000:8000 -e AUDIT_SECRET_KEY=your-secret-key single-cell-trajectory-pseudotime-agent
 ```
+
+---
+
+## 📡 REST API Endpoints
+
+| Method | Endpoint | Description |
+|:-------|:---------|:------------|
+| GET | `/health` | Health check and system metadata |
+| GET | `/metrics` | Prometheus operational metrics |
+| POST | `/api/audit` | Submit task for evaluation |
+| POST | `/api/chat` | Supervisory conversational query |
+| GET | `/api/audit/logs` | Retrieve and verify HMAC audit trail |
+
+---
+
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+## 👤 Author
+
+**Dr. Abu Suraih Sakhri** — [GitHub](https://github.com/abusuraihsakhri)
