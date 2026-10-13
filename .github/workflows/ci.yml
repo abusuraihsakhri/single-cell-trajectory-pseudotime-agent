@@ -38,6 +38,6 @@ jobs:
         run: node --test tests/test_web_ui.mjs
       - name: Smoke-test installed CLI
         run: |
-          single-cell-trajectory-pseudotime-engine verify-audit
-          single-cell-trajectory-pseudotime-engine batch -i sample.csv -o results.csv
+          single-cell-agent verify-audit
+          single-cell-agent batch -i sample.csv -o results.csv
           test -s results.csv
