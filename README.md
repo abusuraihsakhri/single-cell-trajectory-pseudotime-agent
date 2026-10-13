@@ -19,7 +19,7 @@ git clone https://github.com/abusuraihsakhri/single-cell-trajectory-pseudotime-a
 cd single-cell-trajectory-pseudotime-agent
 python -m pip install -e ".[trajectory]"
 
-single-cell-trajectory-pseudotime-engine pseudotime \
+single-cell-agent pseudotime \
   --input example_cells.csv --output pseudotime.csv \
   --root-cell C0 --neighbors 2 --components 7
 ```
@@ -41,9 +41,9 @@ The existing `agents/` API and `cell_trajectory/` agent classes apply fixed thre
 
 ```bash
 python -m pip install -e ".[api]"
-single-cell-trajectory-pseudotime-engine audit --task-id T1 --primary 28 --secondary 14 --status DISCORDANT
-single-cell-trajectory-pseudotime-engine batch -i sample.csv -o results.csv
-single-cell-trajectory-pseudotime-engine verify-audit
+single-cell-agent audit --task-id T1 --primary 28 --secondary 14 --status DISCORDANT
+single-cell-agent batch -i sample.csv -o results.csv
+single-cell-agent verify-audit
 python cli.py serve --host 127.0.0.1 --port 8000
 ```
 
@@ -53,7 +53,7 @@ On a running local server:
 - `POST /api/chat` returns a deterministic mock response, not a live language-model analysis.
 - `GET /api/audit/logs` is disabled unless `AUDIT_LOGS_TOKEN` is set; access then requires `Authorization: Bearer <token>`.
 
-The separately packaged `cell-trajectory-frontier` command exposes the earlier domain-specific rule engine.
+The original `single-cell-trajectory-pseudotime-engine` console command remains mapped to the legacy `cell_trajectory.cli` rule engine for compatibility; `cell-trajectory-frontier` is an additional alias. The new `single-cell-agent` command runs the root CLI and scientific subcommand.
 
 ### Browser demo and GitHub Pages
 
