@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Single Cell Trajectory Pseudotime Engine API",
-    "description": "Enterprise Distributed Component Platform (Clinical & Cryptographic AI) adhering to CAP / CLSI / NIST Standards.",
-    "version": "3.0.0-ENTERPRISE",
+    "title": "Metric Screening Audit API",
+    "description": "Legacy threshold/keyword rule-based metric screening; not diffusion pseudotime or clinical decision support.",
+    "version": "2.0.1",
     "contact": {
       "name": "Dr. Abu Suraih Sakhri",
       "url": "https://github.com/abusuraihsakhri"
@@ -15,24 +15,24 @@
         "summary": "Health and metadata check",
         "responses": {
           "200": {
-            "description": "System optimal"
+            "description": "Status and service metadata"
           }
         }
       }
     },
     "/metrics": {
       "get": {
-        "summary": "Prometheus operational metrics",
+        "summary": "JSON task and audit counts",
         "responses": {
           "200": {
-            "description": "Prometheus text metrics"
+            "description": "In-memory counts and signature-chain verification"
           }
         }
       }
     },
     "/api/audit": {
       "post": {
-        "summary": "Dispatch task payload across specialized workers",
+        "summary": "Apply legacy metric-screening rules",
         "requestBody": {
           "content": {
             "application/json": {
@@ -69,14 +69,14 @@
         },
         "responses": {
           "200": {
-            "description": "Consensus dossier with HMAC signature"
+            "description": "Rule-based dossier and associated in-memory audit hash"
           }
         }
       }
     },
     "/api/chat": {
       "post": {
-        "summary": "Air-gapped supervisory conversational assistant",
+        "summary": "Deterministic mock response",
         "requestBody": {
           "content": {
             "application/json": {
@@ -103,12 +103,19 @@
     },
     "/api/audit/logs": {
       "get": {
-        "summary": "Retrieve and cryptographically verify HMAC audit trail",
+        "summary": "Retrieve in-memory audit chain when token access is enabled",
         "responses": {
           "200": {
             "description": "Cryptographic audit trail"
+          },
+          "403": {
+            "description": "Invalid audit log token"
+          },
+          "404": {
+            "description": "Audit log access disabled"
           }
-        }
+        },
+        "description": "Disabled until AUDIT_LOGS_TOKEN is configured; then requires an Authorization: Bearer token."
       }
     }
   }
