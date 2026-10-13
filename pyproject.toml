@@ -1,27 +1,37 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "single-cell-trajectory-pseudotime-engine"
-version = "2.0.0"
-description = "CellTrajectory Sentinel: Diffusion Pseudotime & Branching Lineage Engine"
+version = "2.0.1"
+description = "Rule-based biomedical metric auditing and experimental trajectory utilities"
 readme = "README.md"
-authors = [{ name = "Dr. Abu Suraih Sakhri", email = "abusuraih@example.com" }]
+authors = [{ name = "Dr. Abu Suraih Sakhri" }]
 license = { text = "MIT" }
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
-    "Topic :: Security/Cryptography",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 requires-python = ">=3.9"
-dependencies = []
+dependencies = ["pydantic>=2.0,<3"]
+
+[project.optional-dependencies]
+api = ["fastapi>=0.100,<1", "uvicorn>=0.23,<1"]
+test = ["pytest>=8,<10", "httpx>=0.27,<1"]
 
 [project.scripts]
-single-cell-trajectory-pseudotime-engine = "cell_trajectory.cli:main"
+single-cell-trajectory-pseudotime-engine = "cli:main"
+cell-trajectory-frontier = "cell_trajectory.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/abusuraihsakhri/single-cell-trajectory-pseudotime-engine"
-Repository = "https://github.com/abusuraihsakhri/single-cell-trajectory-pseudotime-engine.git"
+Homepage = "https://github.com/abusuraihsakhri/single-cell-trajectory-pseudotime-agent"
+Repository = "https://github.com/abusuraihsakhri/single-cell-trajectory-pseudotime-agent"
+
+[tool.setuptools]
+py-modules = ["cli", "enrichment", "simulator", "cell_trajectory_app"]
+
+[tool.setuptools.packages.find]
+include = ["agents*", "cell_trajectory*"]
