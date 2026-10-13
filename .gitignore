@@ -32,3 +32,9 @@ Thumbs.db
 results.csv
 output.csv
 *.log
+
+# Local credentials and generated data
+.env
+.env.*
+!.env.example
+pseudotime.csv
