@@ -58,7 +58,7 @@ def test_audit_trail_returns_defensive_copy():
 
 def test_batch_prevents_input_overwrite(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
-    payload = "task_id,target_identifier,primary_metric\\nA,B,12\\n"
+    payload = "task_id,target_identifier,primary_metric\nA,B,12\n"
     file = tmp_path / "data.csv"
     file.write_text(payload, encoding="utf-8")
     assert main(["batch", "-i", "data.csv", "-o", "data.csv"]) == 1
@@ -68,8 +68,8 @@ def test_batch_prevents_input_overwrite(tmp_path, monkeypatch):
 def test_batch_rejects_nonfinite(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "data.csv").write_text(
-        "task_id,target_identifier,primary_metric,secondary_metric\\n"
-        "A,B,nan,1\\nC,D,12,1\\n", encoding="utf-8"
+        "task_id,target_identifier,primary_metric,secondary_metric\n"
+        "A,B,nan,1\nC,D,12,1\n", encoding="utf-8"
     )
     assert main(["batch", "-i", "data.csv", "-o", "output.csv"]) == 0
     output = (tmp_path / "output.csv").read_text(encoding="utf-8")
