@@ -25,7 +25,8 @@ test = ["pytest>=8,<10", "httpx>=0.27,<1"]
 trajectory = ["numpy>=1.24,<3"]
 
 [project.scripts]
-single-cell-trajectory-pseudotime-engine = "cli:main"
+single-cell-trajectory-pseudotime-engine = "cell_trajectory.cli:main"
+single-cell-agent = "cli:main"
 cell-trajectory-frontier = "cell_trajectory.cli:main"
 
 [project.urls]
