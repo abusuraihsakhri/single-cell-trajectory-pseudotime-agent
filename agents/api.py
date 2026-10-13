@@ -1,6 +1,7 @@
 """HTTP API for rule-based metric auditing (not trajectory inference)."""
 import hmac
 import os
+from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
@@ -53,7 +54,7 @@ def api_chat(req: ChatRequest):
 
 
 @app.get("/api/audit/logs")
-def api_audit_logs(authorization: str | None = Header(default=None)):
+def api_audit_logs(authorization: Optional[str] = Header(default=None)):
     # Audit entries can carry sensitive operational metadata. Never publish
     # them anonymously; disable this endpoint until a token is configured.
     token = os.environ.get("AUDIT_LOGS_TOKEN")
