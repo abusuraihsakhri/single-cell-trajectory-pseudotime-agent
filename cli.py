@@ -64,6 +64,14 @@ def main(argv=None):
     p_batch.add_argument("-i", "--input", required=True)
     p_batch.add_argument("-o", "--output", default="results.csv")
 
+    # Experimental spectral diffusion-map pseudotime for small numeric matrices.
+    p_trajectory = subparsers.add_parser("pseudotime", help="Estimate root-relative diffusion pseudotime from numeric cell features")
+    p_trajectory.add_argument("-i", "--input", required=True, help="CSV: cell_id followed by numeric features")
+    p_trajectory.add_argument("-o", "--output", required=True, help="Output CSV (must differ from input)")
+    p_trajectory.add_argument("--root-cell", required=True, help="Cell ID used as pseudotime origin")
+    p_trajectory.add_argument("--neighbors", type=int, default=5)
+    p_trajectory.add_argument("--components", type=int, default=10)
+
     # Verify Audit
     subparsers.add_parser("verify-audit", help="Verify HMAC audit trail integrity")
 
@@ -108,6 +116,47 @@ def main(argv=None):
         valid = AuditLogger.verify_integrity()
         print(f"Audit Trail Blocks: {len(trail)} | Cryptographic Integrity Verified: {valid}")
         return 0 if valid else 1
+
+    if args.command == "pseudotime":
+        from cell_trajectory.pseudotime import diffusion_pseudotime
+        try:
+            source = _safe_resolve_path(args.input, must_exist=True)
+            destination = _safe_resolve_path(args.output)
+            if source == destination:
+                raise ValueError("Output must differ from input")
+            with source.open("r", encoding="utf-8-sig", newline="") as f:
+                reader = csv.reader(f)
+                header = next(reader, [])
+                if len(header) < 2 or header[0] != "cell_id":
+                    raise ValueError("CSV must start with cell_id followed by numeric feature columns")
+                records = list(reader)
+            if not 3 <= len(records) <= 300:
+                raise ValueError("Expected 3–300 cells")
+            if len(header) - 1 > 50:
+                raise ValueError("At most 50 numeric features are supported")
+            ids, features = [], []
+            for row in records:
+                if len(row) != len(header) or not row[0].strip():
+                    raise ValueError("CSV row has missing or extra columns, or an empty cell ID")
+                ids.append(row[0])
+                features.append([float(v) for v in row[1:]])
+            if len(ids) != len(set(ids)):
+                raise ValueError("Cell IDs must be unique")
+            if args.root_cell not in ids:
+                raise ValueError("Root cell not found in CSV")
+            values = diffusion_pseudotime(
+                features, root_index=ids.index(args.root_cell),
+                n_neighbors=args.neighbors, n_components=args.components,
+            )
+            with destination.open("w", encoding="utf-8", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["cell_id", "pseudotime"])
+                writer.writerows(zip(ids, values))
+            print(f"Estimated spectral pseudotime for {len(ids)} cells -> {args.output}")
+            return 0
+        except (ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
+            print(f"Pseudotime error: {exc}", file=sys.stderr)
+            return 1
 
     if args.command == "batch":
         in_path = _safe_resolve_path(args.input, must_exist=True)
