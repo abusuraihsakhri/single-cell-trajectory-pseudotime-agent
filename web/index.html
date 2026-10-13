@@ -193,7 +193,7 @@
         // No simulated signatures, network calls, or pseudotime claims.
         let localEvaluations = 0;
         const output = document.getElementById('outputConsole');
-        output.textContent = 'Local rule-based screening ready. Do not enter patient identifiers.\\nThis demo does not compute cell trajectories, verify audit signatures, or transmit data.';
+        output.textContent = 'Local rule-based screening ready. Do not enter patient identifiers.\nThis demo does not compute cell trajectories, verify audit signatures, or transmit data.';
 
         function runAudit() {
             const id = document.getElementById('task_id').value.trim();
@@ -212,7 +212,7 @@
                 return;
             }
 
-            const phi = /\\b(?:MRN[:#\\s-]*\\d{4,10}|\\d{3}-\\d{2}-\\d{4}|[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,})\\b/i;
+            const phi = /\b(?:MRN[:#\s-]*\d{4,10}|\d{3}-\d{2}-\d{4}|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,})\b/i;
             if ([id, target, descriptor].some(v => phi.test(v))) {
                 output.textContent = 'Input rejected: possible personal identifier. This limited check is not de-identification.';
                 return;
