@@ -4,6 +4,7 @@ Command Line Interface for Single Cell Trajectory Pseudotime Agent.
 import argparse
 import csv
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -31,6 +32,16 @@ def _safe_resolve_path(path_str: str, must_exist: bool = False) -> Path:
     return p
 
 
+def _finite_float(value: str) -> float:
+    try:
+        number = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("Expected a number") from exc
+    if not math.isfinite(number):
+        raise argparse.ArgumentTypeError("Metric must be finite")
+    return number
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="single-cell-trajectory-pseudotime-agent", description="Single Cell Trajectory Pseudotime Agent")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -39,8 +50,8 @@ def main(argv=None):
     p_audit = subparsers.add_parser("audit", help="Run single task evaluation")
     p_audit.add_argument("--task-id", default="TASK-2026-001")
     p_audit.add_argument("--target", default="KEY-TARGET-01")
-    p_audit.add_argument("--primary", type=float, default=28.5)
-    p_audit.add_argument("--secondary", type=float, default=14.2)
+    p_audit.add_argument("--primary", type=_finite_float, default=28.5)
+    p_audit.add_argument("--secondary", type=_finite_float, default=14.2)
     p_audit.add_argument("--critical", action="store_true")
     p_audit.add_argument("--status", default="DISCORDANT")
 
@@ -96,22 +107,27 @@ def main(argv=None):
         trail = AuditLogger.get_trail()
         valid = AuditLogger.verify_integrity()
         print(f"Audit Trail Blocks: {len(trail)} | Cryptographic Integrity Verified: {valid}")
-        return 0
+        return 0 if valid else 1
 
     if args.command == "batch":
         in_path = _safe_resolve_path(args.input, must_exist=True)
         out_path = _safe_resolve_path(args.output, must_exist=False)
+        if in_path == out_path:
+            print("Error: Output path must differ from input path.", file=sys.stderr)
+            return 1
         with open(in_path, mode="r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
 
-        out_fields = fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]
+        out_fields = list(dict.fromkeys(fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]))
         out_rows = []
         for r in rows:
             try:
                 primary = float(r.get("primary_metric", 15.0))
                 secondary = float(r.get("secondary_metric", 5.0))
+                if not math.isfinite(primary) or not math.isfinite(secondary):
+                    raise ValueError("Metrics must be finite")
             except (ValueError, TypeError) as e:
                 print(f"Warning: Skipping row with invalid metrics: {r} ({e})")
                 continue
