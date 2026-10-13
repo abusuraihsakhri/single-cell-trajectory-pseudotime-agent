@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const html = readFileSync(new URL('../web/index.html', import.meta.url), 'utf8');
-const match = html.match(/<script>([\\s\\S]*?)<\\/script>/);
+const match = html.match(/<script>([\s\S]*?)<\/script>/);
 assert.ok(match, 'browser app must contain an inline script');
 
 function fixture() {
