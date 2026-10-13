@@ -4,6 +4,7 @@ Command Line Interface for Single Cell Trajectory Pseudotime Agent.
 import argparse
 import csv
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -31,6 +32,16 @@ def _safe_resolve_path(path_str: str, must_exist: bool = False) -> Path:
     return p
 
 
+def _finite_float(value: str) -> float:
+    try:
+        number = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("Expected a number") from exc
+    if not math.isfinite(number):
+        raise argparse.ArgumentTypeError("Metric must be finite")
+    return number
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="single-cell-trajectory-pseudotime-agent", description="Single Cell Trajectory Pseudotime Agent")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -39,8 +50,8 @@ def main(argv=None):
     p_audit = subparsers.add_parser("audit", help="Run single task evaluation")
     p_audit.add_argument("--task-id", default="TASK-2026-001")
     p_audit.add_argument("--target", default="KEY-TARGET-01")
-    p_audit.add_argument("--primary", type=float, default=28.5)
-    p_audit.add_argument("--secondary", type=float, default=14.2)
+    p_audit.add_argument("--primary", type=_finite_float, default=28.5)
+    p_audit.add_argument("--secondary", type=_finite_float, default=14.2)
     p_audit.add_argument("--critical", action="store_true")
     p_audit.add_argument("--status", default="DISCORDANT")
 
@@ -52,6 +63,14 @@ def main(argv=None):
     p_batch = subparsers.add_parser("batch", help="Batch process CSV records")
     p_batch.add_argument("-i", "--input", required=True)
     p_batch.add_argument("-o", "--output", default="results.csv")
+
+    # Experimental spectral diffusion-map pseudotime for small numeric matrices.
+    p_trajectory = subparsers.add_parser("pseudotime", help="Estimate root-relative diffusion pseudotime from numeric cell features")
+    p_trajectory.add_argument("-i", "--input", required=True, help="CSV: cell_id followed by numeric features")
+    p_trajectory.add_argument("-o", "--output", required=True, help="Output CSV (must differ from input)")
+    p_trajectory.add_argument("--root-cell", required=True, help="Cell ID used as pseudotime origin")
+    p_trajectory.add_argument("--neighbors", type=int, default=5)
+    p_trajectory.add_argument("--components", type=int, default=10)
 
     # Verify Audit
     subparsers.add_parser("verify-audit", help="Verify HMAC audit trail integrity")
@@ -75,7 +94,7 @@ def main(argv=None):
         dossier = supervisor.process_task(payload)
         print("=" * 80)
         print(f"  SINGLE CELL TRAJECTORY PSEUDOTIME AGENT")
-        print(f"  Domain: Clinical & Biomedical AI | Standard: CAP / CLSI / ISO Standards")
+        print(f"  Mode: Demonstration metric-screening rules (not clinical validation)")
         print(f"  Dossier ID: {dossier.dossier_id} | Urgency: [{dossier.overall_urgency.value}]")
         print("=" * 80)
         for a in dossier.alerts:
@@ -96,22 +115,68 @@ def main(argv=None):
         trail = AuditLogger.get_trail()
         valid = AuditLogger.verify_integrity()
         print(f"Audit Trail Blocks: {len(trail)} | Cryptographic Integrity Verified: {valid}")
-        return 0
+        return 0 if valid else 1
+
+    if args.command == "pseudotime":
+        from cell_trajectory.pseudotime import diffusion_pseudotime
+        try:
+            source = _safe_resolve_path(args.input, must_exist=True)
+            destination = _safe_resolve_path(args.output)
+            if source == destination:
+                raise ValueError("Output must differ from input")
+            with source.open("r", encoding="utf-8-sig", newline="") as f:
+                reader = csv.reader(f)
+                header = next(reader, [])
+                if len(header) < 2 or header[0] != "cell_id":
+                    raise ValueError("CSV must start with cell_id followed by numeric feature columns")
+                records = list(reader)
+            if not 3 <= len(records) <= 300:
+                raise ValueError("Expected 3–300 cells")
+            if len(header) - 1 > 50:
+                raise ValueError("At most 50 numeric features are supported")
+            ids, features = [], []
+            for row in records:
+                if len(row) != len(header) or not row[0].strip():
+                    raise ValueError("CSV row has missing or extra columns, or an empty cell ID")
+                ids.append(row[0])
+                features.append([float(v) for v in row[1:]])
+            if len(ids) != len(set(ids)):
+                raise ValueError("Cell IDs must be unique")
+            if args.root_cell not in ids:
+                raise ValueError("Root cell not found in CSV")
+            values = diffusion_pseudotime(
+                features, root_index=ids.index(args.root_cell),
+                n_neighbors=args.neighbors, n_components=args.components,
+            )
+            with destination.open("w", encoding="utf-8", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(["cell_id", "pseudotime"])
+                writer.writerows(zip(ids, values))
+            print(f"Estimated spectral pseudotime for {len(ids)} cells -> {args.output}")
+            return 0
+        except (ValueError, FileNotFoundError, OSError, RuntimeError) as exc:
+            print(f"Pseudotime error: {exc}", file=sys.stderr)
+            return 1
 
     if args.command == "batch":
         in_path = _safe_resolve_path(args.input, must_exist=True)
         out_path = _safe_resolve_path(args.output, must_exist=False)
+        if in_path == out_path:
+            print("Error: Output path must differ from input path.", file=sys.stderr)
+            return 1
         with open(in_path, mode="r", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             fieldnames = list(reader.fieldnames or [])
             rows = list(reader)
 
-        out_fields = fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]
+        out_fields = list(dict.fromkeys(fieldnames + ["overall_urgency", "integrity_status", "total_alerts", "audit_hash"]))
         out_rows = []
         for r in rows:
             try:
                 primary = float(r.get("primary_metric", 15.0))
                 secondary = float(r.get("secondary_metric", 5.0))
+                if not math.isfinite(primary) or not math.isfinite(secondary):
+                    raise ValueError("Metrics must be finite")
             except (ValueError, TypeError) as e:
                 print(f"Warning: Skipping row with invalid metrics: {r} ({e})")
                 continue

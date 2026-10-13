@@ -75,5 +75,5 @@ class SystemSupervisor:
 
     def query_supervisory_chat(self, query: str) -> str:
         PHIGuard.assert_no_phi(query)
-        prompt = f"Supervisor inquiry for Single Cell Trajectory Pseudotime Agent under CAP / CLSI / ISO Standards: {query}"
+        prompt = f"Supervisor inquiry for Single Cell Trajectory Pseudotime Agent for non-clinical rule-based metric screening: {query}"
         return self.llm.invoke(prompt)
